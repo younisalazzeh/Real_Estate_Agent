@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Chainlit
+.chainlit/
+
+# Logs
+logs/
+*.log
+
+# Audio / Temp Files
+*.wav
+*.webm
+*.mp3
+
+# Databases
+# olist.sqlite (Usually too large for GitHub, but keeping it if user needs it. 
+# For Real Estate Agent, we might want to include the schema but not raw data.
+# However, for a small demo, sometimes it's okay.)
+# olist.sqlite
+
+# System
+.DS_Store
+Thumbs.db
+
+# API Keys
+.env
+ffmpeg_path.txt
