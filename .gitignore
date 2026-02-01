@@ -20,9 +20,11 @@ logs/
 *.mp3
 
 # Databases
-# Note: olist.sqlite is large but included for demo purposes
-# In production, exclude and provide setup instructions
-# *.sqlite
+# Exclude large database files (GitHub 100MB limit)
+*.sqlite
+*.db
+data/*.sqlite
+data/*.db
 
 # System
 .DS_Store
