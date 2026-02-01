@@ -86,10 +86,12 @@ Starting_Script/
    ```
 
 3. **Set up the database**
-   - The `olist.sqlite` database is not included (too large for GitHub)
-   - Download from [Kaggle: Brazilian E-Commerce Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
-   - Place the database file at `data/olist.sqlite`
-   - See `data/README.md` for more details
+   - The `olist.sqlite` database is **not included** in this repository (107 MB, exceeds GitHub's 100MB limit)
+   - **Download the database:**
+     - Visit [Kaggle: Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+     - Download and place the SQLite database file as `data/olist.sqlite`
+   - **Alternative:** Use the schema documentation in `data/schema_output.md` to create your own database
+   - The application expects the database at: `data/olist.sqlite`
 
 4. **Set up environment variables** (optional, for cloud LLMs)
    ```bash
