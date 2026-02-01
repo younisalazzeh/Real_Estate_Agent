@@ -20,10 +20,9 @@ logs/
 *.mp3
 
 # Databases
-# olist.sqlite (Usually too large for GitHub, but keeping it if user needs it. 
-# For Real Estate Agent, we might want to include the schema but not raw data.
-# However, for a small demo, sometimes it's okay.)
-# olist.sqlite
+# Note: olist.sqlite is large but included for demo purposes
+# In production, exclude and provide setup instructions
+# *.sqlite
 
 # System
 .DS_Store

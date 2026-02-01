@@ -253,3 +253,4 @@ async def on_audio_end():
     except Exception as e:
         logger.error(f"Voice processing failed: {str(e)}")
         await cl.Message(content=f"❌ Voice processing error: {str(e)}").send()
+
