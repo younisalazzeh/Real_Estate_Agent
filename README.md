@@ -85,7 +85,13 @@ Starting_Script/
    pip install -r requirements.txt
    ```
 
-3. **Set up environment variables** (optional, for cloud LLMs)
+3. **Set up the database**
+   - The `olist.sqlite` database is not included (too large for GitHub)
+   - Download from [Kaggle: Brazilian E-Commerce Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+   - Place the database file at `data/olist.sqlite`
+   - See `data/README.md` for more details
+
+4. **Set up environment variables** (optional, for cloud LLMs)
    ```bash
    # Create .env file
    export GOOGLE_API_KEY="your-key"
@@ -93,7 +99,7 @@ Starting_Script/
    export ANTHROPIC_API_KEY="your-key"
    ```
 
-4. **Run the application**
+5. **Run the application**
    ```bash
    chainlit run chainlit_app.py -w
    ```
