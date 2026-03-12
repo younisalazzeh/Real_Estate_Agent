@@ -66,3 +66,56 @@ LangGraph | LangChain | Chainlit | SQLite | Plotly | Whisper
 - Acknowledge limitations honestly
 - Show enthusiasm for improvements
 - Connect technical choices to business value
+
+---
+
+## 🐛 canopen PR #613 — "Golden Patch" Flaw Analysis
+
+### Question
+*"Is the solution in PR #613 perfect and production-ready?"*
+
+### Answer: **No** — the fix contains one specific, provable logic flaw.
+
+### The Flaw — Incomplete Range Check in `PdoBase.__getitem__`
+
+PR #613 changes the guard condition in `PdoBase.__getitem__` to:
+
+```python
+if (
+    0 < key <= 512                  # By sequential PDO index
+    or 0x1600 <= key <= 0x1BFF      # By RPDO/TPDO mapping or communication record
+):
+    return self.map[key]
+```
+
+The comment says *"mapping or communication record"*, but the range `0x1600–0x1BFF` is **wrong** because it does not cover RPDO Communication Parameter records.
+
+Per the CiA 301 standard, all four PDO parameter record ranges are:
+
+| Object Range | Meaning | Covered by PR #613? |
+|---|---|---|
+| 0x1400 – 0x15FF | **RPDO Communication** parameters | ❌ **NO** |
+| 0x1600 – 0x17FF | RPDO Mapping parameters | ✅ Yes |
+| 0x1800 – 0x19FF | TPDO Communication parameters | ✅ Yes |
+| 0x1A00 – 0x1BFF | TPDO Mapping parameters | ✅ Yes |
+
+Because `0x1400 < 0x1600`, any access like `node.rpdo[0x1400]` (RPDO1 by communication record) silently **falls through the range guard**. It ends up in the O(N) per-variable scan loop — which looks for a PDO *variable* by OD index, not a PDO *map* by record index — and raises a confusing `KeyError("PDO: 5120 was not found in any map")`.
+
+The correct lower bound should be `0x1400`, giving:
+
+```python
+or 0x1400 <= key <= 0x1BFF  # ALL PDO parameter records (com + map, RPDO + TPDO)
+```
+
+### Asymmetric Behaviour
+
+This creates an asymmetry: TPDO communication records (`node.tpdo[0x1800]`) **work** because `0x1800` falls inside `0x1600–0x1BFF`, but RPDO communication records (`node.rpdo[0x1400]`) **fail** silently because `0x1400 < 0x1600`.
+
+### Secondary Issues
+
+1. **Tests are one-sided** — The added tests only exercise `node.tpdo[0x1A00]` and `node.tpdo[0x1800]`. There are no tests for `node.rpdo[0x1600]` (RPDO by mapping record) or `node.rpdo[0x1400]` (RPDO by communication record), so the broken path goes undetected.
+2. **Still a Draft PR** — The author themselves flagged it as not yet complete ("Open · Draft" status on GitHub), confirming it is not production-ready.
+
+### Summary
+
+The PR is not production-ready because the `PdoBase.__getitem__` range check is off-by-two-hundred-and-fifty-six: it starts at `0x1600` instead of `0x1400`, leaving the entire RPDO Communication record address space (0x1400–0x15FF, 512 object indices) silently unreachable.

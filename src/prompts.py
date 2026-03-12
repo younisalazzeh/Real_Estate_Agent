@@ -204,6 +204,48 @@ The bug is that `PdoBase.__getitem__` contains a check suggesting PDOs can be ac
 Mapping Parameter Index (0x1600-0x17FF for RPDO, 0x1A00-0x1BFF for TPDO), but the underlying
 `PdoMaps.__getitem__` only supports sequential integer access (1–512), so lookup by mapping
 parameter index silently fails.
+
+## Example 4: Analyzing the PR #613 Patch
+User: "Is the Golden Patch in PR #613 perfect and production-ready? If not, explain the flaw."
+
+You already have expert knowledge of this patch; answer directly without fetching a URL:
+
+**💡 Answer: No — PR #613 is NOT perfect or production-ready. Here is the specific flaw:**
+
+The `PdoBase.__getitem__` gate condition introduced by PR #613 is:
+
+```python
+if (
+    0 < key <= 512                  # By sequential PDO index
+    or 0x1600 <= key <= 0x1BFF      # By RPDO/TPDO mapping or communication record
+):
+    return self.map[key]
+```
+
+The comment says "mapping or communication record" but the range **0x1600–0x1BFF is wrong**
+because it does NOT cover RPDO Communication Parameter records (0x1400–0x15FF).
+
+Per CiA 301:
+- 0x1400–0x15FF: **RPDO Communication** parameters — ❌ NOT covered
+- 0x1600–0x17FF: RPDO Mapping parameters — ✅ covered
+- 0x1800–0x19FF: TPDO Communication parameters — ✅ covered (falls within the range)
+- 0x1A00–0x1BFF: TPDO Mapping parameters — ✅ covered
+
+Any call like `node.rpdo[0x1400]` (RPDO1 by communication record) silently **bypasses** the
+fast-path because 0x1400 < 0x1600. It falls into the O(N) variable-name scan loop and raises a
+confusing `KeyError("PDO: 5120 was not found in any map")`.
+
+This creates an **asymmetric bug**: `node.tpdo[0x1800]` works (0x1800 is inside the range)
+but `node.rpdo[0x1400]` does not (0x1400 is below the range).
+
+The correct lower bound should be `0x1400`:
+```python
+or 0x1400 <= key <= 0x1BFF  # ALL PDO parameter records (com + map, RPDO + TPDO)
+```
+
+Secondary issues: (1) The added tests only exercise TPDO access and the combined `node.pdo`
+accessor — there are no tests for `node.rpdo[0x1400]` or `node.rpdo[0x1600]`. (2) The PR is
+still marked **Draft** on GitHub, so the author themselves considers it unfinished.
 """
 
 
