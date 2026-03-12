@@ -67,6 +67,7 @@ I can help you analyze the Olist E-commerce database. Just ask me questions in n
 - **Query Data**: Ask questions about customers, orders, products, sellers, etc.
 - **Create Visualizations**: Request charts, graphs, and trends
 - **Provide Insights**: Get key findings and summaries from the data
+- **Answer GitHub Questions**: Paste a GitHub issue or PR URL and ask me anything about it
 
 ## Example Questions:
 - "How many customers are in the database?"
@@ -74,6 +75,8 @@ I can help you analyze the Olist E-commerce database. Just ask me questions in n
 - "Create a bar chart of monthly revenue for 2018"
 - "What are the most popular product categories?"
 - "Compare payment methods used by customers"
+- "What is the bug described in https://github.com/canopen-python/canopen/issues/607?"
+- "Summarise the changes in https://github.com/canopen-python/canopen/pull/613"
 
 ## Voice Input:
 Click the microphone button to speak your question!
