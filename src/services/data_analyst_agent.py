@@ -1,9 +1,13 @@
 """
 Data Analyst Agent using LangGraph.
 Handles SQL queries and visualizations for the Olist E-commerce database.
+Also supports fetching and analysing content from GitHub issues and PRs.
 """
 import sqlite3
 import json
+import re
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Annotated, Literal
 import plotly.io as pio
@@ -152,8 +156,86 @@ def draw_chart_tool(
         return error_msg
 
 
+@tool
+def fetch_url_content_tool(
+    url: Annotated[str, "The URL to fetch content from (e.g. a GitHub issue or pull request URL)"]
+) -> str:
+    """
+    Fetch and return the text content of a web page or GitHub issue/PR URL.
+
+    Use this tool when the user provides a URL (such as a GitHub issue or pull request link)
+    and asks questions about its content.  The tool converts GitHub issue/PR HTML pages to
+    plain text so the LLM can read and answer questions about them.
+
+    Returns the page content as plain text (up to ~8000 characters).
+    """
+    try:
+        logger.info(f"Fetching URL: {url}")
+
+        # Convert GitHub issue/PR HTML URLs to the API endpoint for cleaner JSON content
+        api_url = url.strip()
+
+        # Convert https://github.com/<owner>/<repo>/issues/<number> to GitHub API JSON
+        issue_match = re.match(
+            r"https?://github\.com/([^/]+)/([^/]+)/issues/(\d+)", api_url
+        )
+        pr_match = re.match(
+            r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", api_url
+        )
+
+        if issue_match:
+            owner, repo, number = issue_match.groups()
+            api_url = f"https://api.github.com/repos/{owner}/{repo}/issues/{number}"
+        elif pr_match:
+            owner, repo, number = pr_match.groups()
+            api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{number}"
+
+        req = urllib.request.Request(
+            api_url,
+            headers={
+                "User-Agent": "OlistAnalystAgent/1.0",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+
+        with urllib.request.urlopen(req, timeout=15) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+
+        # If we got JSON from the GitHub API, extract the useful fields
+        try:
+            data = json.loads(raw)
+            parts = []
+            for field in ("title", "state", "body", "html_url"):
+                if field in data and data[field]:
+                    parts.append(f"**{field.upper()}**: {data[field]}")
+            content = "\n\n".join(parts) if parts else raw
+        except (json.JSONDecodeError, TypeError):
+            content = raw
+
+        # Truncate very long responses
+        max_chars = 8000
+        if len(content) > max_chars:
+            content = content[:max_chars] + f"\n\n... [truncated, total {len(content)} chars]"
+
+        logger.info(f"Fetched {len(content)} chars from {url}")
+        return content
+
+    except urllib.error.HTTPError as e:
+        error_msg = f"HTTP Error {e.code} when fetching {url}: {e.reason}"
+        logger.error(error_msg)
+        return error_msg
+    except urllib.error.URLError as e:
+        error_msg = f"URL Error when fetching {url}: {e.reason}"
+        logger.error(error_msg)
+        return error_msg
+    except Exception as e:
+        error_msg = f"Error fetching URL {url}: {str(e)}"
+        logger.error(error_msg)
+        return error_msg
+
+
 # List of all tools
-ALL_TOOLS = [execute_sql_tool, draw_chart_tool]
+ALL_TOOLS = [execute_sql_tool, draw_chart_tool, fetch_url_content_tool]
 
 
 # ================================================================================
@@ -196,6 +278,8 @@ async def tool_executor_node(state: MessagesState, config: RunnableConfig):
                     result = execute_sql_tool.invoke(tool_args)
                 elif tool_name == "draw_chart_tool":
                     result = draw_chart_tool.invoke(tool_args)
+                elif tool_name == "fetch_url_content_tool":
+                    result = fetch_url_content_tool.invoke(tool_args)
                 else:
                     result = f"Unknown tool: {tool_name}"
                 
@@ -328,6 +412,11 @@ async def run_data_analyst(
                 
                 elif tool_name == "draw_chart_tool":
                     yield "\n\n**📊 Creating visualization...**\n"
+
+                elif tool_name == "fetch_url_content_tool":
+                    fetched_url = tool_input.get("url", "")
+                    if fetched_url:
+                        yield f"\n\n**🌐 Fetching content from:** {fetched_url}\n"
             
             # Handle tool results
             elif event_type == "on_tool_end":
